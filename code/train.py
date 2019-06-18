@@ -306,7 +306,7 @@ for i, sentence in enumerate(sentences):
         else:
             y_a[i, target_char_indices[c]] = softness/(len(target_chars)-1)
     y_t[i] = next_t/divisor
-    np.set_printoptions(threshold=np.nan)
+    np.set_printoptions(threshold=sys.maxsize)
 
 # build the model: 
 print('Build model...')
