@@ -39,117 +39,17 @@ eventlog = "helpdesk.csv"
 # this part of the code opens the file, reads it into three following variables
 #
 
+csvfile = open('../data/%s' % eventlog, 'r')
+spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+next(spamreader, None)  # skip the headers
+#helper variables
+ascii_offset=161
+lastcase = ''
+line = ''
+firstLine = True
 lines = [] #these are all the activity seq
 timeseqs = [] #time sequences (differences between two events)
 timeseqs2 = [] #time sequences (differences between the current and first)
-
-#helper variables
-lastcase = ''
-line = ''
-firstLine = True
-times = []
-times2 = []
-numlines = 0
-casestarttime = None
-lasteventtime = None
-
-
-csvfile = open('../data/%s' % eventlog, 'r')
-spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-next(spamreader, None)  # skip the headers
-ascii_offset = 161
-
-for row in spamreader: #the rows are "CaseID,ActivityID,CompleteTimestamp"
-    t = time.strptime(row[2], "%Y-%m-%d %H:%M:%S") #creates a datetime object from row[2]
-    if row[0]!=lastcase:  #'lastcase' is to save the last executed case for the loop
-        casestarttime = t
-        lasteventtime = t
-        lastcase = row[0]
-        if not firstLine:
-            lines.append(line)
-            timeseqs.append(times)
-            timeseqs2.append(times2)
-        line = ''
-        times = []
-        times2 = []
-        numlines+=1
-    line+=unichr(int(row[1])+ascii_offset)
-    timesincelastevent = datetime.fromtimestamp(time.mktime(t))-datetime.fromtimestamp(time.mktime(lasteventtime))
-    timesincecasestart = datetime.fromtimestamp(time.mktime(t))-datetime.fromtimestamp(time.mktime(casestarttime))
-    timediff = 86400 * timesincelastevent.days + timesincelastevent.seconds
-    timediff2 = 86400 * timesincecasestart.days + timesincecasestart.seconds
-    times.append(timediff)
-    times2.append(timediff2)
-    lasteventtime = t
-    firstLine = False
-
-# add last case
-lines.append(line)
-timeseqs.append(times)
-timeseqs2.append(times2)
-numlines+=1
-
-########################################
-
-divisor = np.mean([item for sublist in timeseqs for item in sublist]) #average time between events
-print('divisor: {}'.format(divisor))
-divisor2 = np.mean([item for sublist in timeseqs2 for item in sublist]) #average time between current and first events
-print('divisor2: {}'.format(divisor2))
-
-
-
-#########################################################################################################
-
-# separate training data into 3 parts
-
-elems_per_fold = int(round(numlines/3))
-fold1 = lines[:elems_per_fold]
-fold1_t = timeseqs[:elems_per_fold]
-fold1_t2 = timeseqs2[:elems_per_fold]
-
-fold2 = lines[elems_per_fold:2*elems_per_fold]
-fold2_t = timeseqs[elems_per_fold:2*elems_per_fold]
-fold2_t2 = timeseqs2[elems_per_fold:2*elems_per_fold]
-
-fold3 = lines[2*elems_per_fold:]
-fold3_t = timeseqs[2*elems_per_fold:]
-fold3_t2 = timeseqs2[2*elems_per_fold:]
-
-#leave away fold3 for now
-lines = fold1 + fold2
-lines_t = fold1_t + fold2_t
-lines_t2 = fold1_t2 + fold2_t2
-
-step = 1
-sentences = []
-softness = 0
-next_chars = []
-lines = map(lambda x: x+'!',lines) #put delimiter symbol
-maxlen = max(map(lambda x: len(x),lines)) #find maximum line size
-
-# next lines here to get all possible characters for events and annotate them with numbers
-chars = map(lambda x: set(x),lines)
-chars = list(set().union(*chars))
-chars.sort()
-target_chars = copy.copy(chars)
-chars.remove('!')
-print('total chars: {}, target chars: {}'.format(len(chars), len(target_chars)))
-char_indices = dict((c, i) for i, c in enumerate(chars))
-indices_char = dict((i, c) for i, c in enumerate(chars))
-target_char_indices = dict((c, i) for i, c in enumerate(target_chars))
-target_indices_char = dict((i, c) for i, c in enumerate(target_chars))
-print(indices_char)
-
-
-csvfile = open('../data/%s' % eventlog, 'r')
-spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-next(spamreader, None)  # skip the headers
-lastcase = ''
-line = ''
-firstLine = True
-lines = []
-timeseqs = []
-timeseqs2 = []
 timeseqs3 = []
 timeseqs4 = []
 times = []
@@ -159,9 +59,9 @@ times4 = []
 numlines = 0
 casestarttime = None
 lasteventtime = None
-for row in spamreader:
-    t = time.strptime(row[2], "%Y-%m-%d %H:%M:%S")
-    if row[0]!=lastcase:
+for row in spamreader: #the rows are "CaseID,ActivityID,CompleteTimestamp"
+    t = time.strptime(row[2], "%Y-%m-%d %H:%M:%S") #creates a datetime object from row[2]
+    if row[0]!=lastcase:  #'lastcase' is to save the last executed case for the loop
         casestarttime = t
         lasteventtime = t
         lastcase = row[0]
@@ -199,7 +99,21 @@ timeseqs.append(times)
 timeseqs2.append(times2)
 timeseqs3.append(times3)
 timeseqs4.append(times4)
-numlines+=1
+
+########################################
+
+divisor = np.mean([item for sublist in timeseqs for item in sublist]) #average time between events
+print('divisor: {}'.format(divisor))
+divisor2 = np.mean([item for sublist in timeseqs2 for item in sublist]) #average time between current and first events
+print('divisor2: {}'.format(divisor2))
+
+
+
+#########################################################################################################
+
+# separate training data into 3 parts
+
+
 
 elems_per_fold = int(round(numlines/3))
 fold1 = lines[:elems_per_fold]
@@ -232,6 +146,7 @@ with open('output_files/folds/fold3.csv', 'wb') as csvfile:
     for row, timeseq in izip(fold3, fold3_t):
         spamwriter.writerow([unicode(s).encode("utf-8") +'#{}'.format(t) for s, t in izip(row, timeseq)])
 
+#leave away fold3 for now
 lines = fold1 + fold2
 lines_t = fold1_t + fold2_t
 lines_t2 = fold1_t2 + fold2_t2
@@ -243,6 +158,24 @@ sentences = []
 softness = 0
 next_chars = []
 lines = map(lambda x: x+'!',lines)
+maxlen = max(map(lambda x: len(x),lines)) #find maximum line size
+
+
+
+# next lines here to get all possible characters for events and annotate them with numbers
+chars = map(lambda x: set(x),lines)
+chars = list(set().union(*chars))
+chars.sort()
+target_chars = copy.copy(chars)
+chars.remove('!')
+print('total chars: {}, target chars: {}'.format(len(chars), len(target_chars)))
+char_indices = dict((c, i) for i, c in enumerate(chars))
+indices_char = dict((i, c) for i, c in enumerate(chars))
+target_char_indices = dict((c, i) for i, c in enumerate(target_chars))
+target_indices_char = dict((i, c) for i, c in enumerate(target_chars))
+print(indices_char)
+
+
 
 sentences_t = []
 sentences_t2 = []
